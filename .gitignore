@@ -1,0 +1,14 @@
+graphify-out/cache/
+node_modules/
+.claude/settings.local.json
+.security-reports/
+.env
+.env.*
+!.env.example
+logs/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
