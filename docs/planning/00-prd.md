@@ -39,6 +39,9 @@ more than 3 workflows, GUI.
 outreach clock started (chapter-1-plan.md DoD).
 
 ## OPEN items
-- OPEN-01 (owner: user, deadline: ch2 start): confirm GPU/RAM -> pick Ollama
-  model tier (8B Q4 needs ~6GB VRAM or slow CPU fallback; qwen2.5:7b-instruct
-  is the ASSUMED default -- best tool-calling per size as of cutoff).
+- OPEN-01 RESOLVED 2026-07-12: GPU = RTX 3080 Laptop, 8GB VRAM.
+  Model tier CONFIRMED: qwen2.5:7b-instruct Q4_K_M (~4.7GB weights) fully
+  GPU-offloaded with room for KV cache. Constraints now binding in TRD:
+  num_ctx <= 8192 (KV cache eats the remaining VRAM); ONE model resident at
+  a time (Ollama swaps embed/gen models -- fine, do not fight it); llama3.1:8b
+  Q4 is the approved fallback if qwen tool-calling disappoints in TASK-03.

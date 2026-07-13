@@ -5,7 +5,7 @@
 |---|---|---|
 | Language | Python 3.12 (py launcher; NEVER bare python -- Store stub) | D-01 |
 | MCP | FastMCP (official python SDK server helper) | D-02 |
-| Local LLM | Ollama; default model qwen2.5:7b-instruct (ASSUMED, OPEN-01) | D-03 |
+| Local LLM | Ollama; default model qwen2.5:7b-instruct Q4_K_M, num_ctx<=8192 (OPEN-01 resolved: RTX 3080 Laptop 8GB) | D-03 |
 | Sandbox | Docker Desktop (Windows), python:3.12-slim, --network none | D-04 |
 | Excel | openpyxl (read-only mode) | D-05 |
 | Tests | pytest; egress proof via psutil connection snapshot + Sysmon note | D-06 |
