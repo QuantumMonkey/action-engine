@@ -75,3 +75,21 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 - Do not commit or push without clear authority from the active profile or the current user request.
 - If a required sync or push is blocked, stop and report the exact command and error.
 <!-- END BEADS INTEGRATION -->
+
+## START HERE (handoff for any fresh session: Opus/Sonnet/Gemini)
+1. bd ready --json -> claim ONE task. One TASK per session, no exceptions.
+2. Read ONLY the task's context manifest (docs/planning/05-implementation-plan.md
+   row for your TASK). Do not read the whole planning pack.
+3. Constitution: docs/planning/ (00-prd.md REQ-nn, 01-trd.md D/NFR/FLOW/ENT,
+   traceability.md). Code follows docs; to deviate, amend the doc FIRST and
+   log it in docs/planning/DEVIATIONS.md.
+4. Done = the task's done-criteria column, verified by running it (never
+   claimed on generated code alone), then bd close with reason + artifact link.
+
+## Build & Test
+- Python via 'py' launcher ONLY (bare python/python3 are Store stubs that fail).
+- Test: py -m pytest
+- ASCII-only in everything written to disk (no em-dashes).
+
+## Sequencing note
+This arc runs FIRST. TASK-02 (post) may parallel TASK-03 once TASK-01 closes.
