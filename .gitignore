@@ -12,3 +12,7 @@ logs/
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+# Python build artifacts
+__pycache__/
+*.pyc
