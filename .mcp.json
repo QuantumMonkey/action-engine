@@ -1,9 +1,5 @@
 {
   "mcpServers": {
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"]
-    },
     "sqlite-readonly": {
       "command": "py",
       "args": ["-m", "sqlite_mcp_server.server", "fixtures/sample.db"]
