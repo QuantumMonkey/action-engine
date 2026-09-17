@@ -18,10 +18,9 @@ Copied into each project by init-project.ps1. Project specifics go below the rul
 - Write such files like onboarding docs for a new hire: self-contained, exact paths, exact commands, no context assumed.
 
 ## Idea Evaluation (cross-tool)
-- Any new product/business/side-project idea goes through the idea-killer
-  protocol at `D:\Claude setups\payload\skills\idea-killer\SKILL.md` before any
-  design or build work. Read it and execute it EXACTLY; its Execution Notes are
-  binding on every model. History and priors live in `D:\Claude setups\ledger\`.
+- Any new product/business/side-project idea goes through the operator's
+  idea-killer protocol (kept outside this repo) before any design or build
+  work. Its Execution Notes are binding on every model.
 
 ## Task Tracking (beads) -- single source of truth across ALL tools
 - All task tracking via `bd`. Run `bd prime` for workflow context.

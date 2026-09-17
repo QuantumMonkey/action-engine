@@ -8,9 +8,9 @@ No duplicates of global rules (~\.claude\CLAUDE.md already applies).
 - Durable findings go to the bd issue before a session ends, never chat-only.
 
 ## Build & Test
-- Build: [fill in when the stack is chosen]
-- Test: [fill in when the stack is chosen]
-- Run: [fill in when the stack is chosen]
+- Build: none (pure Python; deps: mcp, pytest -- see pyproject.toml)
+- Test: py -m pytest tests -q
+- Run: py scripts\make_fixture.py; py -m sqlite_mcp_server.server fixtures\sample.db
 
 ## Project rules
 - NEVER read graphify-out\cache\ (agent-facing noise; gitignored).
