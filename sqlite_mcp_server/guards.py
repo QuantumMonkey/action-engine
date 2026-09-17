@@ -12,6 +12,7 @@ Two guarantees, both enforced at the server, never at the prompt:
 import os
 import re
 import sqlite3
+from urllib.parse import quote
 
 
 class RefusalError(Exception):
@@ -99,7 +100,10 @@ def open_readonly(lock: PathLock) -> sqlite3.Connection:
     authorizer. Belt (mode=ro), suspenders (authorizer), and the
     statement screen runs before either."""
     path = lock.check()
-    uri = "file:{}?mode=ro".format(path.replace("\\", "/"))
+    # SQLite URI filenames are percent-decoded and end at the first '?' or
+    # '#'. Encode the path, or a '#' in a directory name would silently open
+    # a different file with mode=ro dropped. '/' and ':' stay literal.
+    uri = "file:{}?mode=ro".format(quote(path.replace("\\", "/"), safe="/:"))
     conn = sqlite3.connect(uri, uri=True)
     conn.set_authorizer(_authorizer)
     return conn

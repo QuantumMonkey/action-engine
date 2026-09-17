@@ -7,7 +7,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlite_mcp_server.guards import (  # noqa: E402
-    PathLock, RefusalError, run_query, screen_select_only,
+    PathLock, RefusalError, open_readonly, run_query, screen_select_only,
 )
 from scripts.make_fixture import build  # noqa: E402
 
@@ -98,3 +98,55 @@ def test_row_cap_truncates(lock):
     result = run_query(lock, "SELECT * FROM orders", max_rows=3)
     assert result["row_count"] == 3
     assert result["truncated"] is True
+
+
+def test_comment_stripped_text_is_what_runs(lock, db):
+    # A fake comment cannot smuggle a statement past the screen: the screened
+    # (stripped) text is the text that is executed, so the DELETE never
+    # reaches SQLite at all.
+    result = run_query(lock, "SELECT 'a/*'; DELETE FROM orders; SELECT '*/'")
+    assert result["rows"] == [["a "]]
+    conn = sqlite3.connect(db)
+    assert conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0] == 8
+    conn.close()
+
+
+@pytest.mark.parametrize("dirname", ["a#b", "p%41q", "with space", "semi;colon"])
+def test_odd_characters_in_db_path(tmp_path, dirname):
+    # SQLite URI filenames stop at '#' and are percent-decoded; the path must
+    # be encoded or the server opens (and creates) a different file.
+    d = tmp_path / dirname
+    d.mkdir()
+    path = str(d / "x.db")
+    build(path)
+    result = run_query(PathLock(path), "SELECT COUNT(*) FROM customers")
+    assert result["rows"] == [[5]]
+    assert sorted(p.name for p in tmp_path.iterdir()) == [dirname]
+
+
+def test_mode_ro_holds_with_authorizer_removed(tmp_path):
+    # Layer 3 on its own: strip the authorizer from a connection opened by
+    # open_readonly and the read-only mode still refuses the write.
+    d = tmp_path / "a#b"
+    d.mkdir()
+    path = str(d / "x.db")
+    build(path)
+    conn = open_readonly(PathLock(path))
+    conn.set_authorizer(None)
+    with pytest.raises(sqlite3.OperationalError, match="readonly"):
+        conn.execute("UPDATE customers SET name = 'x'")
+    conn.close()
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="known v0.1 issue: _ALLOWED_OPS lists 31 (SQLITE_FUNCTION) where "
+           "33 (SQLITE_RECURSIVE) was meant, so recursive CTEs are refused "
+           "with read_only_violation. Remove this marker when fixed.",
+)
+def test_recursive_cte_is_a_read(lock):
+    result = run_query(lock, (
+        "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n "
+        "WHERE x < 3) SELECT x FROM n"
+    ))
+    assert result["rows"] == [[1], [2], [3]]
