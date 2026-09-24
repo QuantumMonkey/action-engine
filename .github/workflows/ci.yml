@@ -73,15 +73,29 @@ jobs:
         # "Runs on a clean machine" is a claim, so it gets checked rather than asserted: start the
         # image with nothing but its defaults and make it serve its own contract.
         run: |
+          set -x
           docker run -d --name ae -p 8000:8000 action-engine:ci
           for i in $(seq 1 30); do
-            if curl -fsS http://localhost:8000/healthz > /dev/null; then break; fi
+            if curl -fsS http://localhost:8000/healthz > /dev/null 2>&1; then break; fi
             sleep 1
           done
-          curl -fsS http://localhost:8000/healthz | tee /dev/stderr | grep -q '"status":"ok"'
-          curl -fsS http://localhost:8000/openapi.json | grep -q '/v1/tables'
-          # No token configured in the image: a protected route must refuse, not serve.
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/v1/tables)" = "503"
+
+          health=$(curl -fsS http://localhost:8000/healthz)
+          echo "$health"
+          echo "$health" | grep -q '"status":"ok"'
+
+          spec=$(curl -fsS http://localhost:8000/openapi.json)
+          echo "$spec" | grep -q '/v1/tables'
+
+          # The image bakes no signing key, so a protected route must refuse rather than serve.
+          # Two different refusals, and both are the point: no credentials is 401, and credentials
+          # this deployment cannot verify is 503. Anything that answers 200 here is a leak.
+          anon=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/v1/tables)
+          test "$anon" = "401"
+          withtoken=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer not-a-real-token" http://localhost:8000/v1/tables)
+          test "$withtoken" = "503"
+
           docker logs ae
           docker rm -f ae
       - name: Push (master and tags only)
