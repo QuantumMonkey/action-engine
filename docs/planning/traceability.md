@@ -16,8 +16,8 @@
 | REQ-12 | chapter B | TASK-B3 | DONE 2026-09-24: per-subject sliding window, 429 with Retry-After, first refusal per window audited; acceptance green |
 | REQ-13 | chapter B, ADR-0001, extends REQ-07 | TASK-B4 | DONE 2026-09-24: one row per accepted request, three identities from claims, args hashed not stored, append-only JSONL; 4 acceptance tests + 6 unit tests green |
 | REQ-14 | chapter B, ADR-0002 | TASK-B5 | DONE 2026-09-24: key claimed before the outbound call, replay returns the stored response, reuse with a different body is 409; 7 unit tests + acceptance green |
-| REQ-15 | chapter B, ADR-0002 | TASK-B6 | PARTIAL 2026-09-24: runner + dialect-aware DDL written and proven idempotent on SQLite; the Postgres path is UNVERIFIED (no server available) and its acceptance test stays RED until CI supplies ACTION_ENGINE_TEST_DATABASE_URL |
-| REQ-16 | chapter B | TASK-B7 | spec, CI and deploy checked by hand |
+| REQ-15 | chapter B, ADR-0002 | TASK-B6 | DONE 2026-09-24: verified against a real Postgres 16 service in CI (run 35989837284, acceptance 9 passed); runner is dialect-aware and idempotent |
+| REQ-16 | chapter B | TASK-B7 | PARTIAL 2026-09-24: CI green on both gates (suites, then image built and smoke-tested: healthz, openapi, 401 anonymous, 503 unverifiable token). Deploy pending ADR-0003 (operator picks the cloud) and the operator's own credentials |
 
 No orphan REQs; no TASK without an upstream cite. SCR- unused (uiux waived,
 see 00-prd deviation note). OPEN-01 blocks TASK-03 only.
