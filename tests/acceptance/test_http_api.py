@@ -81,9 +81,12 @@ def test_auth_rejects_missing_bad_and_expired(client, tokens):
 
 
 def test_healthz_is_open_and_unaudited(client, tokens):
-    before = client.get("/v1/audit/_count", headers={"Authorization": "Bearer %s" % tokens["delegated"]}).json()
+    h = {"Authorization": "Bearer %s" % tokens["delegated"]}
+    counted = client.get("/v1/audit/_count", headers=h)
+    assert counted.status_code == 200, "no audit counter to check against (REQ-13 not built)"
+    before = counted.json()
     assert client.get("/healthz").status_code == 200
-    after = client.get("/v1/audit/_count", headers={"Authorization": "Bearer %s" % tokens["delegated"]}).json()
+    after = client.get("/v1/audit/_count", headers=h).json()
     assert before == after, "health checks must not write audit rows"
 
 

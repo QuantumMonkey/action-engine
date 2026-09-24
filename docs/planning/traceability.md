@@ -11,8 +11,8 @@
 | REQ-07 | ENT-01 | TASK-03 | open |
 | REQ-08 | -- | TASK-02,04,06,07 | open |
 | REQ-09 | -- | TASK-07 | open |
-| REQ-10 | chapter B | TASK-B1 | spec, test written (red) |
-| REQ-11 | chapter B, ADR-0001 | TASK-B2 | spec, test written (red) |
+| REQ-10 | chapter B | TASK-B1 | DONE 2026-09-24: generated OpenAPI served at /openapi.json, every route summarised; test_openapi_matches_routes green |
+| REQ-11 | chapter B, ADR-0001 | TASK-B2 | DONE 2026-09-24: bearer auth in middleware, typed 401s, three identities from claims only; test_auth_rejects_missing_bad_and_expired green |
 | REQ-12 | chapter B | TASK-B3 | spec, test written (red) |
 | REQ-13 | chapter B, ADR-0001, extends REQ-07 | TASK-B4 | spec, test written (red) |
 | REQ-14 | chapter B, ADR-0002 | TASK-B5 | spec, test written (red) |
