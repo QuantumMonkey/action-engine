@@ -19,8 +19,12 @@ from pydantic import BaseModel, Field
 
 from sqlite_mcp_server.guards import PathLock, RefusalError, open_readonly, run_query
 
+from . import idempotency, sinks
 from .audit import AuditContext, AuditLog, new_request_id
 from .auth import AuthRefusal, Identities, authenticate
+from .ratelimit import limit as rl_limit
+from .ratelimit import limiter, per_minute
+from .ratelimit import window as rl_window
 
 DB_ENV = "ACTION_ENGINE_DB"
 OPEN_ROUTES = ("/healthz", "/openapi.json")
@@ -96,6 +100,19 @@ async def require_bearer_and_audit(request: Request, call_next):
     ctx.idempotency_key = request.headers.get("Idempotency-Key", "")
     request.state.audit = ctx
 
+    # REQ-12. After auth, because the budget belongs to a subject, and a caller who cannot prove who
+    # they are does not get to consume one.
+    allowed, retry_after, first_refusal = limiter.check(identities.subject_id)
+    if not allowed:
+        response = refusal(429, "rate_limited",
+                           "per-subject limit of %d requests per %.0f seconds" % (rl_limit(), rl_window()))
+        response.headers["Retry-After"] = str(retry_after)
+        response.headers["X-Request-Id"] = request_id
+        if first_refusal:
+            ctx.refuse("rate_limited")
+            audit_log().append(ctx.to_row(429))
+        return response
+
     try:
         response = await call_next(request)
     except Exception:
@@ -116,7 +133,7 @@ class QueryRequest(BaseModel):
 
 @app.get("/healthz", summary="Liveness, open and unaudited", tags=["meta"])
 def healthz() -> dict:
-    return {"status": "ok", "version": app.version, "rate_limit_per_minute": None}
+    return {"status": "ok", "version": app.version, "rate_limit_per_minute": per_minute()}
 
 
 @app.get("/openapi.json", summary="The generated OpenAPI document for this service", tags=["meta"])
@@ -206,6 +223,68 @@ def query(body: QueryRequest, request: Request) -> JSONResponse:
         return refusal(400, payload.get("error", "refused"), payload.get("detail", ""))
     ctx.rows_returned = result.get("row_count", 0)
     return JSONResponse(result)
+
+
+class ExportRequest(BaseModel):
+    sql: str = Field(..., description="A single SELECT statement whose result is exported.")
+    sink: str = Field(..., description="Which destination receives the result.")
+
+
+@app.post("/v1/export", summary="Export a result set to a third party, exactly once per key",
+          tags=["write"])
+def export(body: ExportRequest, request: Request) -> JSONResponse:
+    """The only route with a side effect, so it is the only one that requires an Idempotency-Key.
+    No key, no export: accepting the request and hoping the caller never retries is how one export
+    becomes two (ADR-0002)."""
+    ctx = request.state.audit
+    ctx.note("export", {"sql": body.sql, "sink": body.sink})
+    key = request.headers.get("Idempotency-Key", "").strip()
+    if not key:
+        ctx.refuse("idempotency_key_required")
+        return refusal(400, "idempotency_key_required",
+                       "POST /v1/export requires an Idempotency-Key header")
+
+    subject = request.state.identities.subject_id
+    payload = body.model_dump()
+    try:
+        export_id = idempotency.claim(key, subject, payload)
+    except idempotency.Replay as replay:
+        response = JSONResponse(replay.response)
+        response.headers["Idempotent-Replay"] = "true"
+        ctx.note("export", payload)
+        return response
+    except idempotency.Conflict as conflict:
+        ctx.refuse(conflict.reason)
+        response = refusal(409, conflict.reason, conflict.detail)
+        if conflict.retry_after:
+            response.headers["Retry-After"] = str(conflict.retry_after)
+        return response
+
+    try:
+        sink = sinks.get(body.sink)
+    except KeyError:
+        idempotency.release(key)
+        ctx.refuse("no_such_sink")
+        return refusal(400, "no_such_sink", "no sink named %r" % body.sink)
+
+    try:
+        result = run_query(lock(), body.sql)
+    except RefusalError as exc:
+        idempotency.release(key)          # the work never happened, so the key must not block a retry
+        ctx.refuse(exc.payload.get("error", "refused"))
+        return refusal(400, exc.payload.get("error", "refused"), exc.payload.get("detail", ""))
+
+    try:
+        delivery = sink.deliver(key, result)
+    except Exception:
+        idempotency.release(key)
+        raise
+
+    response = {"export_id": export_id, "rows_exported": result.get("row_count", 0),
+                "sink": body.sink, "delivery": delivery}
+    idempotency.complete(key, response)
+    ctx.rows_returned = result.get("row_count", 0)
+    return JSONResponse(response)
 
 
 def _quote(identifier: str) -> str:

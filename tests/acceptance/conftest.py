@@ -21,6 +21,16 @@ def service_environment(tmp_path_factory):
     build(str(db))
     os.environ["ACTION_ENGINE_DB"] = str(db)
     os.environ["ACTION_ENGINE_AUDIT_LOG"] = str(root / "audit.jsonl")
+    # A short window keeps the suite fast; the limiter logic is identical at sixty seconds, and
+    # /healthz reports the rate normalised per minute either way.
+    os.environ["ACTION_ENGINE_RATE_LIMIT"] = "10"
+    os.environ["ACTION_ENGINE_RATE_WINDOW"] = "5"
+    # State for REQ-14. SQLite here proves the idempotency logic; REQ-15's own test still demands a
+    # real Postgres (ACTION_ENGINE_TEST_DATABASE_URL), which is why it stays red until CI has one.
+    os.environ["ACTION_ENGINE_DATABASE_URL"] = "sqlite:///" + str(root / "state.db").replace("\\", "/")
+    from action_engine_api.migrations import upgrade
+
+    upgrade()
     os.environ.setdefault("ACTION_ENGINE_JWT_SECRET", "acceptance-only-secret-not-for-any-deployment")
     yield
 

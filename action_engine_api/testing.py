@@ -52,6 +52,7 @@ def issue_test_tokens() -> dict:
 
 
 def sink_calls(idempotency_key: str) -> int:
-    """How many times the third-party sink was called for one key (REQ-14). Raises until the export
-    route exists, which keeps test_replay_with_same_key_does_not_act_twice honestly red."""
-    raise NotImplementedError("REQ-14 (idempotent export) is not built yet")
+    """How many times the third-party sink was called for one key (REQ-14)."""
+    from .sinks import call_count
+
+    return call_count(idempotency_key)
