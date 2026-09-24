@@ -1,0 +1,39 @@
+# The whole thing on one machine: the service, its Postgres, and a signing key that exists only
+# here. `docker compose up --build` then `curl localhost:8000/healthz`.
+#
+# This file is for a laptop and for a reviewer, never for a deployment: the secret is in plain text
+# and the database password is "postgres".
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: action_engine
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ACTION_ENGINE_DATABASE_URL: postgresql://postgres:postgres@db:5432/action_engine
+      ACTION_ENGINE_JWT_SECRET: local-development-secret-not-for-any-deployment
+      ACTION_ENGINE_RATE_LIMIT: "60"
+      ACTION_ENGINE_RATE_WINDOW: "60"
+    ports:
+      - "8000:8000"
+    volumes:
+      - apidata:/data
+
+volumes:
+  pgdata:
+  apidata:

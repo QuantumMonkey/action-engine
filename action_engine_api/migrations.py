@@ -27,6 +27,11 @@ MIGRATIONS = [
             )""",
     }),
     ("0002_idempotency_keys", {
+        # response and expires_at are TEXT in both dialects on purpose. The response is stored
+        # verbatim to be replayed, never queried by field, so JSONB would buy nothing and would
+        # force a cast on every bind; expires_at holds an ISO-8601 UTC string, which sorts
+        # correctly as text and compares the same way in both dialects. One shape, no casts, no
+        # class of bug that only appears against Postgres.
         "postgres": """
             CREATE TABLE IF NOT EXISTS idempotency_keys (
                 key           TEXT PRIMARY KEY,
@@ -34,9 +39,9 @@ MIGRATIONS = [
                 fingerprint   TEXT NOT NULL,
                 state         TEXT NOT NULL CHECK (state IN ('in_flight', 'done')),
                 export_id     TEXT,
-                response      JSONB,
+                response      TEXT,
                 created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-                expires_at    TIMESTAMPTZ NOT NULL
+                expires_at    TEXT NOT NULL
             )""",
         "sqlite": """
             CREATE TABLE IF NOT EXISTS idempotency_keys (
