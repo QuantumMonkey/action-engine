@@ -80,6 +80,24 @@ idempotency_key.
 Rows are append-only. Hash chaining is out of scope here and belongs to the
 compliance-rag audit store; this chapter must not grow that far.
 
+Two decisions REQ-13 forces, recorded here before the code (2026-09-24):
+
+1. **A rejected request writes no audit row.** The row's fields are the three
+   identities, and a request that failed authentication has none that can be
+   trusted. Writing "unknown did something" would make the trail longer and
+   less true. Failed auth belongs in an access log, which is a different
+   artifact with a different retention rule and is not part of this chapter.
+2. **Audit reads are not themselves audited.** /v1/audit/* touches the log,
+   not the served database, so a read of one's own trail is not an action the
+   trail exists to record. Self-referential rows also make any count
+   untestable. If read-access logging is ever required, it goes to the same
+   separate access log as decision 1.
+
+Storage in this chapter is an append-only JSONL file, which is REQ-07's
+run-log extended with the identity fields rather than a second subsystem.
+REQ-15 moves it to Postgres; the reader is deliberately a small interface so
+that move is a backend swap, not a rewrite.
+
 ## Acceptance criteria -> tests
 
 Every line below is one test in tests/acceptance/test_http_api.py. The box is
