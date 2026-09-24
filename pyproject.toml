@@ -26,3 +26,7 @@ packages = ["sqlite_mcp_server"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The acceptance suite is the chapter-B gate and is RED until that chapter is built, so the default
+# run deselects it and CI runs it as its own step. `pytest -m acceptance` shows what is still owed.
+addopts = "-m 'not acceptance'"
+markers = ["acceptance: definition-of-done gate for an unbuilt chapter (docs/planning/chapter-B-http-api.md)"]

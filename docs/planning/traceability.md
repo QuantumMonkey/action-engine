@@ -11,6 +11,13 @@
 | REQ-07 | ENT-01 | TASK-03 | open |
 | REQ-08 | -- | TASK-02,04,06,07 | open |
 | REQ-09 | -- | TASK-07 | open |
+| REQ-10 | chapter B | TASK-B1 | spec, test written (red) |
+| REQ-11 | chapter B, ADR-0001 | TASK-B2 | spec, test written (red) |
+| REQ-12 | chapter B | TASK-B3 | spec, test written (red) |
+| REQ-13 | chapter B, ADR-0001, extends REQ-07 | TASK-B4 | spec, test written (red) |
+| REQ-14 | chapter B, ADR-0002 | TASK-B5 | spec, test written (red) |
+| REQ-15 | chapter B, ADR-0002 | TASK-B6 | spec, test written (red) |
+| REQ-16 | chapter B | TASK-B7 | spec, CI and deploy checked by hand |
 
 No orphan REQs; no TASK without an upstream cite. SCR- unused (uiux waived,
 see 00-prd deviation note). OPEN-01 blocks TASK-03 only.
