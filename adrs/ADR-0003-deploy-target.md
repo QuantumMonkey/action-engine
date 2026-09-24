@@ -1,6 +1,6 @@
 # ADR-0003: Where chapter B is deployed
 
-- Status: proposed (the operator decides; this records the options and the recommendation)
+- Status: accepted 2026-09-24 (operator chose Azure)
 - Date: 2026-09-24
 - Requirements: REQ-16
 - Relates to: ADR-0002 (Postgres is on the request path for /v1/export)
@@ -28,10 +28,17 @@ Verified 2026-09-24 rather than assumed:
 So the container is effectively free on Azure and the managed database is not,
 which is the whole decision in one line.
 
-## Decision (recommended; the operator picks)
+## Decision (taken 2026-09-24: Azure)
 
 **Azure Container Apps for the service, a free-tier serverless Postgres
 (Neon or equivalent) for the state.**
+
+The operator chose Azure over AWS. The consequence worth stating plainly: the
+Azure line on the profile stops being 2022-era the day the URL answers, and the
+AWS row keeps resting on the NIIT certificate until something is deployed there
+too. In an interview the honest sentence is "the deploy is Azure; my AWS is a
+certificate and course work", and that sentence is only comfortable because the
+Azure half is now real.
 
 1. The service runs on Container Apps with minimum replicas 0. Idle costs
    nothing, and the free grant covers far more traffic than a demo will see.
