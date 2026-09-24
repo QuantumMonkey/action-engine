@@ -30,8 +30,7 @@ which is the whole decision in one line.
 
 ## Decision (taken 2026-09-24: Azure)
 
-**Azure Container Apps for the service, a free-tier serverless Postgres
-(Neon or equivalent) for the state.**
+**Azure Container Apps for the service, Neon's free-tier serverless Postgres for the state.** (Operator chose Neon on 2026-09-25.)
 
 The operator chose Azure over AWS. The consequence worth stating plainly: the
 Azure line on the profile stops being 2022-era the day the URL answers, and the

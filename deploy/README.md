@@ -11,8 +11,11 @@ into nothing else -- not into this repo, not into a chat, not into CI logs.
 ## 0. What you need first
 
 - An Azure subscription and `az` CLI logged in (`az login`).
-- A free-tier Postgres. Neon, Supabase or equivalent; you need one connection
-  string in the form `postgresql://user:password@host/dbname?sslmode=require`.
+- A Neon account (free tier, chosen in ADR-0003). Create a project and copy the
+  pooled connection string; it looks like
+  `postgresql://user:password@ep-xxx.region.aws.neon.tech/neondb?sslmode=require`.
+  Free-tier projects suspend when idle and wake on the next connection, which
+  suits a demo and is the reason the bill stays at zero.
 - A signing key for tokens. Generate it locally and keep it only in the secret
   store:
   `python -c "import secrets; print(secrets.token_urlsafe(48))"`
@@ -25,8 +28,11 @@ master or a tag. So publishing means merging chapter B to master, or tagging:
     git tag v0.2.0 && git push origin v0.2.0
 
 The image then exists at `ghcr.io/quantummonkey/action-engine:latest` and at the
-commit SHA. Make the package public in the repository's Packages settings, or
-Container Apps will need a registry credential it does not otherwise require.
+commit SHA. Make the package public (repository > Packages > package settings > change
+visibility). That was decided on 2026-09-25 and it does two things: Container
+Apps pulls with no registry credential, and a stranger can `docker run` the
+image, which is the `publish the server` half of the MCP criterion. The image
+holds only fixture data and no keys, which is what makes that safe.
 
 ## 2. Create the app
 
