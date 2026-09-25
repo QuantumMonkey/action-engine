@@ -20,19 +20,31 @@ into nothing else -- not into this repo, not into a chat, not into CI logs.
   store:
   `python -c "import secrets; print(secrets.token_urlsafe(48))"`
 
-## 1. Publish the image
+## 1. Publish the image -- DONE 2026-09-25
 
 The image is built and smoke-tested by CI on every push, and pushed to GHCR on
-master or a tag. So publishing means merging chapter B to master, or tagging:
+master or a tag. Chapter B merged to master on 2026-09-25, so this step is
+already done; a later release is a tag:
 
     git tag v0.2.0 && git push origin v0.2.0
 
-The image then exists at `ghcr.io/quantummonkey/action-engine:latest` and at the
-commit SHA. Make the package public (repository > Packages > package settings > change
-visibility). That was decided on 2026-09-25 and it does two things: Container
-Apps pulls with no registry credential, and a stranger can `docker run` the
-image, which is the `publish the server` half of the MCP criterion. The image
-holds only fixture data and no keys, which is what makes that safe.
+The image is at `ghcr.io/quantummonkey/action-engine:latest` and at the commit
+SHA. Note the lowercase owner: a registry rejects uppercase in a repository
+name, which broke the first master run (DEVIATIONS.md, 2026-09-25).
+
+It is already public, and no click was needed -- a package published by Actions
+from a public repository inherits that visibility. Verified anonymously, with
+no credentials, on 2026-09-25:
+
+    T=$(curl -s 'https://ghcr.io/token?scope=repository:quantummonkey/action-engine:pull&service=ghcr.io' | jq -r .token)
+    curl -s -H "Authorization: Bearer $T" https://ghcr.io/v2/quantummonkey/action-engine/tags/list
+
+That returned `latest` plus the commit tag, which is what matters twice over:
+Container Apps pulls with no registry credential, and a stranger can
+`docker run` the image, which is the `publish the server` half of the MCP
+criterion. The image holds only fixture data and no keys, which is what makes
+that safe. If the repository is ever made private, the package follows it and
+step 2 then needs a registry credential.
 
 ## 2. Create the app
 
