@@ -1,0 +1,110 @@
+name: CI
+
+# REQ-16. Two gates, in order: the suites must pass before an image is built, and the image must
+# answer for itself before it is kept. A red build blocks the merge; that is the whole point of
+# having it rather than running pytest locally and remembering to.
+
+on:
+  push:
+    branches: [master, chapter-b-http-api]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      # REQ-15 exists because of this service. The acceptance suite refuses to run its migration
+      # test against SQLite, so this is the only place the Postgres DDL is actually exercised.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: action_engine_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test,api,postgres]"
+      - name: Unit and integration suite
+        run: pytest -q
+      - name: Acceptance gate (chapter B definition of done)
+        env:
+          ACTION_ENGINE_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/action_engine_test
+        run: pytest -q -m acceptance
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: action-engine:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test the built image
+        # "Runs on a clean machine" is a claim, so it gets checked rather than asserted: start the
+        # image with nothing but its defaults and make it serve its own contract.
+        run: |
+          set -x
+          docker run -d --name ae -p 8000:8000 action-engine:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/healthz > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+
+          health=$(curl -fsS http://localhost:8000/healthz)
+          echo "$health"
+          echo "$health" | grep -q '"status":"ok"'
+
+          spec=$(curl -fsS http://localhost:8000/openapi.json)
+          echo "$spec" | grep -q '/v1/tables'
+
+          # The image bakes no signing key, so a protected route must refuse rather than serve.
+          # Two different refusals, and both are the point: no credentials is 401, and credentials
+          # this deployment cannot verify is 503. Anything that answers 200 here is a leak.
+          anon=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/v1/tables)
+          test "$anon" = "401"
+          withtoken=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer not-a-real-token" http://localhost:8000/v1/tables)
+          test "$withtoken" = "503"
+
+          docker logs ae
+          docker rm -f ae
+      - name: Push (master and tags only)
+        if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+          cache-from: type=gha

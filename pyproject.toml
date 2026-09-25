@@ -14,6 +14,12 @@ dependencies = ["mcp>=1.2,<3"]
 
 [project.optional-dependencies]
 test = ["pytest"]
+# Chapter B only. The MCP server itself stays dependency-light: nothing below is imported by
+# sqlite_mcp_server, so the stdio server keeps running with `mcp` alone.
+api = ["fastapi>=0.110", "pydantic>=2", "pyjwt>=2.8", "uvicorn>=0.27", "httpx>=0.27"]
+# Only the deployment and CI need a Postgres driver; local development runs the same migrations
+# against SQLite, and REQ-15's gate refuses to accept that as proof (see migrations.temp_database).
+postgres = ["psycopg[binary]>=3.1"]
 
 [project.scripts]
 sqlite-readonly-mcp = "sqlite_mcp_server.server:main"
@@ -22,7 +28,11 @@ sqlite-readonly-mcp = "sqlite_mcp_server.server:main"
 Repository = "https://github.com/QuantumMonkey/action-engine"
 
 [tool.setuptools]
-packages = ["sqlite_mcp_server"]
+packages = ["sqlite_mcp_server", "action_engine_api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The acceptance suite is the chapter-B gate and is RED until that chapter is built, so the default
+# run deselects it and CI runs it as its own step. `pytest -m acceptance` shows what is still owed.
+addopts = "-m 'not acceptance'"
+markers = ["acceptance: definition-of-done gate for an unbuilt chapter (docs/planning/chapter-B-http-api.md)"]
