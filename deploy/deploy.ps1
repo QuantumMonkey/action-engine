@@ -92,13 +92,63 @@ $sub = ($account | ConvertFrom-Json)
 Write-Host ("  subscription: {0} ({1})" -f $sub.name, $sub.id)
 
 if (-not $VerifyOnly) {
+    # az containerapp lives in an extension, and the default is to stop and ask
+    # mid-command. Install it here instead, so nothing prompts halfway through a
+    # deploy.
+    $ext = & az extension list --query "[?name=='containerapp'].name" --output tsv
+    if ([string]::IsNullOrWhiteSpace($ext)) {
+        Write-Host "  installing the containerapp extension (one time)..."
+        Invoke-Az @("extension", "add", "--name", "containerapp", "--only-show-errors", "--output", "none") "extension add"
+    } else {
+        Write-Host "  containerapp extension: present"
+    }
+
+    # A subscription that has never run Container Apps has these unregistered,
+    # and the failure that causes is not obviously about registration.
+    foreach ($ns in @("Microsoft.App", "Microsoft.OperationalInsights")) {
+        $state = & az provider show --namespace $ns --query registrationState --output tsv
+        if ($LASTEXITCODE -ne 0) { throw "could not read provider $ns" }
+        if ($state -ne "Registered") {
+            Write-Host "  registering $ns (state: $state). This can take a couple of minutes..."
+            Invoke-Az @("provider", "register", "--namespace", $ns, "--wait") "provider register $ns"
+        } else {
+            Write-Host "  provider $ns : Registered"
+        }
+    }
+
+    # Wrong region is another first-command failure, so ask Azure rather than guess.
+    $regions = & az provider show --namespace Microsoft.App --query "resourceTypes[?resourceType=='containerApps'].locations[]" --output tsv
+    if ($LASTEXITCODE -eq 0 -and $regions) {
+        $normalised = $regions | ForEach-Object { $_ -replace "\s", "" } | ForEach-Object { $_.ToLower() }
+        if ($normalised -notcontains $Location.ToLower()) {
+            throw ("Container Apps is not offered in '$Location'. Re-run with -Location set to one of:`n  " +
+                   (($normalised | Sort-Object) -join ", "))
+        }
+        Write-Host "  region $Location : supported"
+    }
+
     foreach ($v in @("ACTION_ENGINE_JWT_SECRET", "ACTION_ENGINE_DATABASE_URL")) {
         $val = [Environment]::GetEnvironmentVariable($v, "Process")
         if ([string]::IsNullOrWhiteSpace($val)) { throw "$v is not set in this shell. See the header of this script." }
     }
     $jwt = $env:ACTION_ENGINE_JWT_SECRET
     if ($jwt.Length -lt 32) { throw "ACTION_ENGINE_JWT_SECRET is $($jwt.Length) chars; HS256 wants 32 or more." }
-    Write-Host "  both secrets present, lengths look sane (values not shown)"
+
+    # sqlite:/// would start and serve, which is the trap: the Container Apps
+    # filesystem is ephemeral and min-replicas 0 means the container goes away
+    # when idle, so the audit rows and idempotency keys would vanish between two
+    # visits. An audit trail that forgets is worse than no audit trail, given
+    # what the profile claims. Postgres or nothing.
+    $dburl = $env:ACTION_ENGINE_DATABASE_URL
+    if ($dburl -notmatch "^postgres(ql)?://") {
+        throw ("ACTION_ENGINE_DATABASE_URL is not a Postgres URL. Container Apps storage is " +
+               "ephemeral and this app scales to zero, so SQLite would lose the audit trail " +
+               "between visits. Create the free Neon project and use its pooled connection string.")
+    }
+    if ($dburl -notmatch "sslmode=") {
+        Write-Host "  warning: the connection string has no sslmode; Neon's pooled string ends in ?sslmode=require" -ForegroundColor Yellow
+    }
+    Write-Host "  both secrets present, Postgres URL, lengths sane (values not shown)"
 }
 
 # ------------------------------------------------------------------ deploy --

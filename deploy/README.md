@@ -23,11 +23,30 @@ into nothing else -- not into this repo, not into a chat, not into CI logs.
       winget install -e --id Microsoft.AzureCLI
 
 - An Azure subscription, logged in: `az login`.
-- A Neon account (free tier, chosen in ADR-0003). Create a project and copy the
-  pooled connection string; it looks like
+- A Neon account (free tier, chosen in ADR-0003). Create the project BEFORE
+  running anything here, because the app has no database fallback: the
+  entrypoint runs migrations first and `store.database_url()` raises when
+  `ACTION_ENGINE_DATABASE_URL` is unset, so the container exits instead of
+  serving a half-configured service. Copy the pooled connection string; it
+  looks like
   `postgresql://user:password@ep-xxx.region.aws.neon.tech/neondb?sslmode=require`.
   Free-tier projects suspend when idle and wake on the next connection, which
   suits a demo and is the reason the bill stays at zero.
+
+  The app also accepts `sqlite:///...`, which would produce a working URL in
+  minutes with no Neon account at all. Do not take that shortcut. Container
+  Apps storage is ephemeral and this app scales to zero, so the audit rows and
+  the idempotency keys would be gone between one visitor and the next. The
+  profile's claim is a system that can prove what it did; a demo that forgets
+  is the counter-example, not the evidence. deploy.ps1 refuses a non-Postgres
+  URL for this reason.
+
+- Nothing else to install by hand. `az containerapp` lives in an extension and
+  the CLI stops to ask about it mid-command; a subscription that has never run
+  Container Apps also needs `Microsoft.App` and `Microsoft.OperationalInsights`
+  registered, which is a failure that does not look like it is about
+  registration. deploy.ps1's preflight does all three, and checks that Container
+  Apps is actually offered in the region before it creates anything.
 - A signing key for tokens. Generate it locally and keep it only in the secret
   store:
   `python -c "import secrets; print(secrets.token_urlsafe(48))"`
