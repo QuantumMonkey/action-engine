@@ -11,9 +11,13 @@ process, not as a rule in a prompt:
  "attempted_sql": "UPDATE customers SET name = 'x'"}
 ```
 
-This is chapter 1 of `action-engine` (local-first agents with hands). The
-server is the whole shipped artifact; the rest of the repo is planning docs
-for chapters that are not built yet. `sqlite_mcp_server/` is about 200 lines.
+This is chapter 1 of `action-engine` (local-first agents with hands), and it
+is shipped. Chapter B is merged too: `action_engine_api/` puts an HTTP
+surface in front of it with delegated identity, an audit trail that records
+which agent acted, whose permissions applied and who decided, rate limits
+and idempotent export. Its container image is published; the cloud deploy is
+in progress. Later chapters are plans in `docs/planning/`.
+`sqlite_mcp_server/` is about 250 lines.
 
 ## How "cannot" is enforced
 
